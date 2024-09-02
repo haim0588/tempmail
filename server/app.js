@@ -6,6 +6,7 @@ const path = require('path');
 const csrf = require('csurf');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
+const cors = require('cors');
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -13,11 +14,18 @@ const port = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, '../public')));
 app.use(express.json());
 app.use(cookieParser());
+app.use(cors());
+
+const MemoryStore = require('memorystore')(session);
+
 app.use(session({
+    cookie: { maxAge: 86400000 },
+    store: new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    }),
     secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
-    saveUninitialized: true,
-    cookie: { secure: process.env.NODE_ENV === 'production' }
+    saveUninitialized: true
 }));
 
 const csrfProtection = csrf({ cookie: true });
@@ -122,11 +130,11 @@ app.post('/extend-email', csrfProtection, (req, res) => {
 });
 
 app.use((err, req, res, next) => {
-    console.error(err);
+    console.error('Error:', err);
     if (err.code === 'EBADCSRFTOKEN') {
         res.status(403).json({ error: 'Invalid CSRF token' });
     } else {
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Internal server error', message: err.message });
     }
 });
 
