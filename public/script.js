@@ -120,6 +120,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     'X-CSRF-Token': csrfToken
                 }
             });
+            if (response.status === 400) {
+                // Email has expired, generate a new one
+                await generateNewEmail();
+                return;
+            }
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -142,6 +147,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } finally {
             showLoading(false);
+        }
+    }
+
+    async function generateNewEmail() {
+        try {
+            const response = await fetch('/generate-email', { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': csrfToken
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            currentEmail = data.email;
+            emailExpirationTime = new Date(data.expirationTime).getTime();
+            updateEmailDisplay(data.email);
+            updateEmailTimer();
+            fetchMessages();
+        } catch (error) {
+            console.error('Error generating new email:', error);
+            showNotification('שגיאה ביצירת כתובת מייל זמנית חדשה. נסה שוב מאוחר יותר.', 'error');
         }
     }
 

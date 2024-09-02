@@ -62,6 +62,13 @@ async function generateEmail(req) {
     };
 }
 
+function isEmailValid(req) {
+    return req.session.guerrillaEmail && 
+           req.session.sidToken &&
+           req.session.emailExpirationTime && 
+           new Date() < new Date(req.session.emailExpirationTime);
+}
+
 app.get('/current-email', csrfProtection, async (req, res) => {
     try {
         if (!req.session.guerrillaEmail || !req.session.emailExpirationTime) {
@@ -90,8 +97,8 @@ app.post('/generate-email', csrfProtection, async (req, res) => {
 });
 
 app.get('/messages', csrfProtection, async (req, res) => {
-    if (!req.session.guerrillaEmail || !req.session.sidToken) {
-        return res.status(400).json({ error: 'No temporary email generated' });
+    if (!isEmailValid(req)) {
+        return res.status(400).json({ error: 'No valid temporary email' });
     }
 
     try {
@@ -104,8 +111,8 @@ app.get('/messages', csrfProtection, async (req, res) => {
 });
 
 app.get('/message/:id', csrfProtection, async (req, res) => {
-    if (!req.session.guerrillaEmail || !req.session.sidToken) {
-        return res.status(400).json({ error: 'No temporary email generated' });
+    if (!isEmailValid(req)) {
+        return res.status(400).json({ error: 'No valid temporary email' });
     }
 
     try {
@@ -118,8 +125,8 @@ app.get('/message/:id', csrfProtection, async (req, res) => {
 });
 
 app.post('/extend-email', csrfProtection, (req, res) => {
-    if (!req.session.guerrillaEmail || !req.session.emailExpirationTime) {
-        return res.status(400).json({ error: 'No temporary email generated' });
+    if (!isEmailValid(req)) {
+        return res.status(400).json({ error: 'No valid temporary email' });
     }
 
     // Extend the expiration time by 10 minutes
@@ -131,6 +138,7 @@ app.post('/extend-email', csrfProtection, (req, res) => {
 
 app.use((err, req, res, next) => {
     console.error('Error:', err);
+    console.error('Session data:', req.session);
     if (err.code === 'EBADCSRFTOKEN') {
         res.status(403).json({ error: 'Invalid CSRF token' });
     } else {
